@@ -4,11 +4,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: d33504e28650ba4603dc9cafc46d0ec9
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy with Wrangler
+      - name: Deploy worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: d33504e28650ba4603dc9cafc46d0ec9
           command: deploy
+      - name: Store HF token as worker secret
+        run: echo "${{ secrets.HF_TOKEN }}" | npx --yes wrangler@3 secret put HF_TOKEN
