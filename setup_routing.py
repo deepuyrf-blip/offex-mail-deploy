@@ -12,26 +12,16 @@ def api(method, path, body=None):
         try: return e.code, json.loads(e.read().decode())
         except Exception: return e.code, {}
     except Exception as e: return 0, {"errors":[str(e)]}
-def show(t,s,d): print(f"[{t}] http={s} success={d.get('success') if isinstance(d,dict) else None} errors={d.get('errors') if isinstance(d,dict) else None}")
-st,d=api("GET","/zones?name="+ZONE_NAME); show("zones",st,d)
-zones=(d.get("result") or []) if isinstance(d,dict) else []
-if not zones: print("RESULT: ZONE_NOT_FOUND"); sys.exit(0)
-zid=zones[0]["id"]; print("zone_id",zid)
-st,d=api("GET",f"/zones/{zid}/dns_records?per_page=200"); show("dns-list",st,d)
-recs=(d.get("result") or []) if isinstance(d,dict) else []
-mx=[r for r in recs if r.get("type")=="MX"]
-print("MX_before:", [(r["name"],r["content"],r.get("priority")) for r in mx])
-for r in mx:
-    if "mx.cloudflare.net" not in (r.get("content") or ""):
-        st,d=api("DELETE",f"/zones/{zid}/dns_records/{r['id']}"); show("mx-del",st,d); print("deleted:",r["content"])
-st,d=api("POST",f"/zones/{zid}/email/routing/enable",{}); show("enable",st,d)
-st,d=api("POST",f"/zones/{zid}/email/routing/dns",{}); show("routing-dns",st,d)
-st,d=api("GET",f"/zones/{zid}/dns_records?type=MX"); show("dns-mx-after",st,d)
-print("MX_after:", [(r["name"],r["content"]) for r in ((d.get("result") or []) if isinstance(d,dict) else [])])
-body={"enabled":True,"name":"Catch-all","matchers":[{"type":"all"}],"actions":[{"type":"worker","value":[WORKER]}]}
-st,d=api("PUT",f"/accounts/{ACC}/email/routing/rules/catch_all",body); show("catchall",st,d)
-st,d=api("GET",f"/accounts/{ACC}/email/routing/rules/catch_all"); show("catchall-verify",st,d)
+def show(t,s,d): print(f"[{t}] http={s} err={d.get('errors') if isinstance(d,dict) else None}")
+st,d=api("GET","/zones?name="+ZONE_NAME)
+zid=((d.get("result") or [{}])[0] or {}).get("id"); print("zone_id",zid)
+st,d=api("GET",f"/accounts/{ACC}/email/routing/rules"); show("acct-rules-GET",st,d)
+print("rules_now:", json.dumps(d.get("result"))[:250] if isinstance(d,dict) else None)
+st,d=api("GET",f"/zones/{zid}/email/routing/rules"); show("zone-rules-GET",st,d)
+st,d=api("PUT",f"/zones/{zid}/email/routing/rules/catch_all",{"enabled":True,"name":"Catch-all","matchers":[{"type":"all"}],"actions":[{"type":"worker","value":[WORKER]}]}); show("zone-catchall-PUT",st,d)
+st,d=api("POST",f"/accounts/{ACC}/email/routing/rules",{"enabled":True,"name":"Catch-all","matchers":[{"type":"all"}],"actions":[{"type":"worker","value":[WORKER]}]}); show("acct-rules-POST",st,d)
+st,d=api("PUT",f"/accounts/{ACC}/email/routing/rules/catch_all",{"enabled":True,"name":"Catch-all","matchers":[{"type":"all"}],"actions":[{"type":"worker","value":[WORKER]}]}); show("acct-catchall-PUT",st,d)
+st,d=api("GET",f"/accounts/{ACC}/email/routing/rules/catch_all"); show("acct-catchall-GET",st,d)
 res=d.get("result") if isinstance(d,dict) else None
-print("catchall_final:", json.dumps(res)[:400] if res else None)
-st,d=api("GET",f"/zones/{zid}/email/routing"); show("routing-final",st,d)
-print("RESULT:", "DONE" if (res and res.get("enabled")) else "PARTIAL")
+print("final:", json.dumps(res)[:300] if res else None)
+print("RESULT:", "DONE" if (res and res.get("enabled")) else "STILL_BLOCKED")
