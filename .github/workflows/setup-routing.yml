@@ -1,0 +1,15 @@
+name: Setup Email Routing
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Email Routing
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: d33504e28650ba4603dc9cafc46d0ec9
+          ZONE_NAME: offexmail.online
+          WORKER: offex-mail-ingest
+        run: python3 setup_routing.py
